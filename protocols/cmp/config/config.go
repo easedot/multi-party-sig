@@ -3,7 +3,9 @@ package config
 import (
 	"errors"
 	"fmt"
+	"github.com/taurusgroup/multi-party-sig/internal/bip44"
 	"io"
+	"log"
 	"math"
 
 	"github.com/taurusgroup/multi-party-sig/internal/bip32"
@@ -272,3 +274,42 @@ func (c *Config) DeriveBIP32(i uint32) (*Config, error) {
 	}
 	return c.Derive(scalar, newChainKey)
 }
+
+//  m/44/coin_type/account/change/address_index
+//coin_type - value is based on SLIP-44 standard.*
+//account - value is the ID of the vault account.  Account IDs are sequential and start with index 0.
+//change - is always set to 0.
+//address_index - is a sequential index starting from 0, where the permanent address of a wallet has index 0, and all other generated addresses (known in the UI as deposit addresses) start with index 1 and go up.
+//For example, an ETH wallet under the Vault account with ID 0 will have an HD derivation path of m/44/60/0/0/0.
+
+func (c *Config) DeriveBIP44(path string) (*Config, error) {
+	pbits, err := bip44.ParseDerivationPath(path)
+	if err != nil {
+		log.Println("Bip44Error", err)
+	}
+
+	cfg := &Config{}
+	cfg = c
+	for _, b := range pbits {
+		cfg, err = cfg.DeriveBIP32(b)
+		if err != nil {
+			log.Println("Print")
+			return nil, err
+		}
+	}
+	return cfg, nil
+}
+
+//func (c *Config) BTCAddress(PubKey curve.Point) string {
+//	publicKeyBytes, _ := PubKey.MarshalBinary()
+//	address := btc.Address(publicKeyBytes)
+//	adr := fmt.Sprintf("%s", address) // 96216849c49358b10257cb55b28ea603c874b05e
+//	return adr
+//}
+
+//func (c *Config) ETHAddress(PubKey curve.Point) string {
+//	PubKey.MarshalBinary()
+//	address := eth.Address(PubKey.XScalar())
+//	adr := fmt.Sprintf("%s", address) // 96216849c49358b10257cb55b28ea603c874b05e
+//	return adr
+//}

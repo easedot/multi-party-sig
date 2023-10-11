@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-
 	"github.com/cronokirby/safenum"
 	"github.com/decred/dcrd/dcrec/secp256k1/v3"
 )
@@ -171,6 +170,14 @@ func (s *Secp256k1Scalar) ActOnBase() Point {
 	return out
 }
 
+// todo haihui modify
+func (s *Secp256k1Scalar) IsOverHalfOrder() bool {
+	return s.value.IsOverHalfOrder()
+}
+func (s *Secp256k1Scalar) PutBytesUnchecked(b []byte) {
+	s.value.PutBytesUnchecked(b)
+}
+
 type Secp256k1Point struct {
 	value secp256k1.JacobianPoint
 }
@@ -191,6 +198,17 @@ func (p *Secp256k1Point) XBytes() []byte {
 	p.value.ToAffine()
 	return p.value.X.Bytes()[:]
 }
+func (p *Secp256k1Point) YBytes() []byte {
+	p.value.ToAffine()
+	return p.value.Y.Bytes()[:]
+}
+
+//commit by jhh
+//由于ECC曲线的特点，根据非压缩格式的公钥(x, y)的x实际上也可推算出y，但需要知道y的奇偶性，因此，可以根据(x, y)推算出x'，
+//作为压缩格式的公钥。
+//压缩格式的公钥实际上只保存x这一个256位整数，但需要根据y的奇偶性在x前面添加02或03前缀，y为偶数时添加02，否则添加03，
+//这样，得到一个1+32=33字节的压缩格式的公钥数据，记作x'。
+//1+32=33
 
 func (p *Secp256k1Point) MarshalBinary() ([]byte, error) {
 	out := make([]byte, 33)
@@ -267,4 +285,16 @@ func (p *Secp256k1Point) XScalar() Scalar {
 	p.value.ToAffine()
 	out.value.SetBytes(p.value.X.Bytes())
 	return out
+}
+
+//haihui todo
+func (p *Secp256k1Point) XOverflow() uint32 {
+	out := new(Secp256k1Scalar)
+	p.value.ToAffine()
+	overflow := out.value.SetBytes(p.value.X.Bytes())
+	return overflow
+}
+func (p *Secp256k1Point) YOddBit() uint32 {
+	p.value.ToAffine()
+	return p.value.Y.IsOddBit()
 }

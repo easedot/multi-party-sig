@@ -1,3 +1,42 @@
+# mobile mpc wallet solution
+
+![Web UI](https://github.com/easedot/multi-party-sig/blob/master/assets/model.png)
+
+
+    exm2p/
+    go buld m2p.go
+
+    ./m2p -id=0 -srv=127.0.0.1:7001                      //server1
+    ./m2p -id=1 -srv=127.0.0.1:8001 -p2p=127.0.0.1:7001  //server2
+
+    exmobile/
+
+    go bild mobile.go //mobile lib GoAntalphaLib
+
+# example mobile use
+    
+    mobile_test.go //use mobile lib example,for ios and android
+    //config
+    //p2p config route to server1 and server2
+    //p2p=[]string{"127.0.0.1:7001", "127.0.0.1:8001"}
+    //f mobile keyshare filename
+    //tx sign transaction or message
+
+    1:Mobile call GenKey
+    Gen keyshare and save in server1(keyshare1),server2(keyshare2),mobile(keyshare3)
+    Save in SGX
+
+    2:Mobile call PublicKey
+    mobile connect to server1 and server2. MPC use keyshare3 and keyshare2 and keyshare1 gen PublicKey
+
+    3:Mobile call RefreshKey
+    mobile connect to server1 and server2. MPC use keyshare3 and keyshare2 and keyshare1 regen keyshare1,keyshare2,keyshare3 and save to file
+
+    4:Mobile call Sign
+    mobile connect to server1 and server2. MPC use keyshare3 and keyshare2 and keyshare1 sign transaction or any message
+    get Sig(R,S,v)
+
+
 # multi-party-sig
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)

@@ -91,6 +91,10 @@ type Scalar interface {
 	//
 	// This can be accomplished with Act, but can be made more efficient, in many cases.
 	ActOnBase() Point
+
+	//haihui add
+	IsOverHalfOrder() bool
+	PutBytesUnchecked(b []byte)
 }
 
 // Point represents an element of our Elliptic Curve group.
@@ -136,6 +140,12 @@ type Point interface {
 	//
 	// If you choose not to implement this method, simply return nil.
 	XScalar() Scalar
+
+	// IsOddBit add by jhh for eth recover id
+	YOddBit() uint32
+	XOverflow() uint32
+	XBytes() []byte
+	YBytes() []byte
 }
 
 // MakeInt converts a scalar into an Int.

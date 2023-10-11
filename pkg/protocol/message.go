@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/fxamacker/cbor/v2"
@@ -31,7 +32,7 @@ type Message struct {
 
 // String implements fmt.Stringer.
 func (m Message) String() string {
-	return fmt.Sprintf("message: round %d, from: %s, to %v, protocol: %s", m.RoundNumber, m.From, m.To, m.Protocol)
+	return fmt.Sprintf("message: round %d, from: %s, to %v, broadcast: %t, protocol: %s", m.RoundNumber, m.From, m.To, m.Broadcast, m.Protocol)
 }
 
 // IsFor returns true if the message is intended for the designated party.
@@ -108,4 +109,11 @@ func (m *Message) UnmarshalBinary(data []byte) error {
 	m.Broadcast = deserialized.Broadcast
 	m.BroadcastVerification = deserialized.BroadcastVerification
 	return nil
+}
+
+func (m *Message) MarshalJson() ([]byte, error) {
+	return json.Marshal(m)
+}
+func (m *Message) UnmarshalJson(data []byte) error {
+	return json.Unmarshal(data, m)
 }

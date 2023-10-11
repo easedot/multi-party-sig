@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/asn1"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/taurusgroup/multi-party-sig/internal/btc"
 	"github.com/taurusgroup/multi-party-sig/internal/test"
 	"github.com/taurusgroup/multi-party-sig/pkg/ecdsa"
 	"github.com/taurusgroup/multi-party-sig/pkg/math/curve"
@@ -40,61 +42,46 @@ const (
 	MaxParty int = 2
 	Timeout      = 1 * time.Minute
 	CMD      int = 1
-	PARAM    int = 2
+	PATH     int = 2
+	MSG      int = 3
 )
 
 //type client chan<- string // an outgoing message channel
-
-func nextId(ids party.IDSlice, id int, max int) (idx int, name party.ID) {
-	nid := id + 1
-	if nid > max {
-		nid = 0
-	}
-	return nid, ids[nid]
-}
 
 func main() {
 	var id int
 	var srv string
 	flag.IntVar(&id, "id", 0, "party id")
 	flag.StringVar(&srv, "srv", "", "local server port")
-	flag.Var(&p2p, "p2p", "-srv localhost:7000 -srv localhost:8000 -srv localhost:9000")
+	flag.Var(&p2p, "p2p", "-p2p localhost:7000 -p2p localhost:8000 -p2p localhost:9000")
 	flag.Parse()
 
 	threshold := 2
 	group := curve.Secp256k1{}
 
 	ids := party.IDSlice{"a", "b", "c"}
-
 	nm := map[party.ID]party.IDSlice{
-		"a": {"b", "c"}, "b": {"a", "c"}, "c": {"a", "b"},
+		"a": {"b", "c"}, "b": {"a", "c"}, "c": {"a", "b", "m"},
 	}
 	uid := ids[id]
 	idm := nm[uid]
 	log.Println("Start party:", uid)
 
-	nid, npid := nextId(ids, id, MaxParty)
-	_, nnpid := nextId(ids, nid, MaxParty)
-
-	//log.Printf("Nextid:%d Thid:%d", nid, nnid)
-	log.Printf("Two party:%s Three party:%s", npid, nnpid)
-
 	network := test.NewNetworkP2P(uid, idm)
 
 	go processCmd(uid, network, ids, threshold, group)
 
-	for _, host := range p2p {
-		go func() {
+	go func() {
+		for i, host := range p2p {
+			log.Printf("Connected: %d %s", i, host)
 			conn, err := waitForServer(host)
 			if err != nil {
 				log.Fatal(err)
 			}
-			//if idx == 0 {
-			go mustCopy(conn, os.Stdin)
-			//}
-			network.HandleConn(conn, npid)
-		}()
-	}
+			//go mustCopy(conn, os.Stdin)
+			go network.HandleConn(conn, "")
+		}
+	}()
 
 	if srv != "" {
 		listener, err := net.Listen("tcp", srv)
@@ -107,8 +94,7 @@ func main() {
 				log.Print(err)
 				continue
 			}
-			//log.Printf("Handle local:%s remote:%s", conn.LocalAddr(), conn.RemoteAddr())
-			go network.HandleConn(conn, nnpid)
+			go network.HandleConn(conn, "")
 		}
 	} else {
 		////
@@ -116,7 +102,6 @@ func main() {
 		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 		<-quit
 		log.Print("Shutdown Server ...")
-
 	}
 }
 
@@ -141,29 +126,55 @@ func mustCopy(dst net.Conn, src io.Reader) {
 
 func processCmd(uid party.ID, tcp *test.NetworkP2P, ids party.IDSlice, threshold int, group curve.Secp256k1) {
 	f := fmt.Sprintf("config_%s.txt", uid)
+	//fr := fmt.Sprintf("config_new_%s.txt", uid)
 	pl := pool.NewPool(0)
 	defer pl.TearDown()
+
+	var preSign *ecdsa.PreSignature
 
 	for cmd := range tcp.CMD() {
 		cmdLine := strings.Split(cmd, ":")
 		log.Println("Execute cmd:", cmd)
 		switch cmdLine[CMD] {
+		case "presign": //cmd:presign
+			cfg, err := loadConfig(f, group)
+			signers := ids[:threshold+1]
+			preSign, err = CMPPreSign(cfg, signers, tcp, pl)
+			if err != nil {
+				log.Print("Error", err)
+			}
+			log.Printf("PreSign OK")
+
+		case "presignon": //cmd:presignon:msg
+			cfg, err := loadConfig(f, group)
+			messageToSign := cmdLine[PATH] //params
+			err = CMPPreSignOnline(cfg, preSign, []byte(messageToSign), tcp, pl)
+			if err != nil {
+				log.Print("Error", err)
+			}
+			log.Printf("PreSignOnline %s OK", messageToSign)
+
 		case "sign":
-			if len(cmdLine) < 3 {
+			if len(cmdLine) < 4 {
 				log.Printf("Please input sign message")
 				break
 			}
-			messageToSign := cmdLine[PARAM] //params
+			path := cmdLine[PATH]
+			messageToSign := cmdLine[MSG] //params
 			signers := ids[:threshold+1]
 			cfg, err := loadConfig(f, group)
-			err = CMPSign1(cfg, []byte(messageToSign), signers, tcp, pl)
+			bipCfg, err := cfg.DeriveBIP44(path)
+			if err != nil {
+				log.Printf("bip path error:%s", err)
+			}
+			err = CMPSign1(bipCfg, []byte(messageToSign), signers, tcp, pl)
 			if err != nil {
 				log.Print("Error", err)
 			}
 			log.Printf("Sign %s OK", messageToSign)
 
 		case "addr":
-			path := cmdLine[PARAM]
+			path := cmdLine[PATH]
 			cfgOld, err := loadConfig(f, group)
 			if err != nil {
 				log.Println("load config error:", err)
@@ -182,6 +193,7 @@ func processCmd(uid party.ID, tcp *test.NetworkP2P, ids party.IDSlice, threshold
 			if err != nil {
 				log.Println("load refresh error:", err)
 			}
+			writeConfig(cfgNew, f)
 
 			cfjo, _ := json.Marshal(cfgOld)
 			cfjn, _ := json.Marshal(cfgNew)
@@ -212,8 +224,10 @@ func genAddress(cfgOld *cmp.Config, path string) {
 		log.Println("DeriveBipError", err)
 	}
 	log.Printf("BIP44:Path: %s", path)
-	pubkey, err := cfgNew.PublicPoint().MarshalBinary()
-	log.Printf("pubkey compress:%x", pubkey)
+	pubkey := cfgNew.PublicPoint()
+	pubkeyComp, err := pubkey.MarshalBinary()
+	log.Printf("pubkey compress:%x", pubkeyComp)
+	log.Printf("address: %s", btc.Address(pubkey.XBytes(), pubkey.YBytes()))
 }
 
 func writeConfig(cfg *cmp.Config, f string) {
@@ -278,12 +292,59 @@ func CMPSign1(c *cmp.Config, m []byte, signers party.IDSlice, n test.INetwork, p
 
 	signature := signResult.(*ecdsa.Signature)
 
-	//c.PublicPoint 公钥 m 文本 signature签名
-	log.Printf("msg:%s", m)
-	prvSig, _ := signature.R.MarshalBinary()
-	log.Printf("prvSig:%s ", prvSig)
 	if !signature.Verify(c.PublicPoint(), m) {
 		return errors.New("failed to verify cmp signature")
 	}
+
+	log.Printf("Msg:%s", m)
+	r, _ := signature.R.MarshalBinary()
+	s, _ := signature.S.MarshalBinary()
+
+	log.Printf("Signature:R:%s S:%s ", string(r), string(s))
+
+	as, _ := asn1.Marshal(signature)
+	log.Printf("ans: %s", as)
+	return nil
+}
+
+func CMPPreSign(c *cmp.Config, signers party.IDSlice, n test.INetwork, pl *pool.Pool) (*ecdsa.PreSignature, error) {
+	h, err := protocol.NewMultiHandler(cmp.Presign(c, signers, pl), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	test.HandlerLoop(c.ID, h, n)
+
+	signResult, err := h.Result()
+	if err != nil {
+		return nil, err
+	}
+
+	preSignature := signResult.(*ecdsa.PreSignature)
+	if err = preSignature.Validate(); err != nil {
+		return nil, errors.New("failed to verify cmp presignature")
+	}
+	return preSignature, nil
+}
+
+func CMPPreSignOnline(c *cmp.Config, preSignature *ecdsa.PreSignature, m []byte, n test.INetwork, pl *pool.Pool) error {
+	h, err := protocol.NewMultiHandler(cmp.PresignOnline(c, preSignature, m, pl), nil)
+	if err != nil {
+		return err
+	}
+	test.HandlerLoop(c.ID, h, n)
+
+	signResult, err := h.Result()
+	if err != nil {
+		return err
+	}
+	signature := signResult.(*ecdsa.Signature)
+	if !signature.Verify(c.PublicPoint(), m) {
+		return errors.New("failed to verify cmp signature")
+	}
+	log.Printf("Msg:%s", m)
+	r, _ := signature.R.MarshalBinary()
+	s, _ := signature.S.MarshalBinary()
+	log.Printf("Signature:R:%s S:%s ", r, s)
 	return nil
 }
