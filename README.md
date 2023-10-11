@@ -11,7 +11,7 @@
 
     exmobile/
 
-    go bild mobile.go //mobile lib MPCDotLib
+    go build mobile.go //mobile lib MPCDotLib
 
 # example mobile use
     
