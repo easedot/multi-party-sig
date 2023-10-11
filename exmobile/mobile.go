@@ -18,7 +18,7 @@ import (
 )
 
 type (
-	GoAntalphaLib struct{}
+	GoMpcLib struct{}
 )
 
 const (
@@ -27,7 +27,7 @@ const (
 
 func main() {
 }
-func (p *GoAntalphaLib) PublicKey(keyShare []byte, path string) ([]byte, []byte, error) {
+func (p *GoMpcLib) PublicKey(keyShare []byte, path string) ([]byte, []byte, error) {
 	group := curve.Secp256k1{}
 	cfg, err := loadConfig(keyShare, group)
 	if err != nil {
@@ -41,7 +41,7 @@ func (p *GoAntalphaLib) PublicKey(keyShare []byte, path string) ([]byte, []byte,
 	return pubKey.XBytes(), pubKey.YBytes(), nil
 }
 
-func (p *GoAntalphaLib) Sign(p2p []string, id, threshold int, keyShare []byte, path string, messageToSign []byte) ([]byte, []byte, byte, error) {
+func (p *GoMpcLib) Sign(p2p []string, id, threshold int, keyShare []byte, path string, messageToSign []byte) ([]byte, []byte, byte, error) {
 	pl := pool.NewPool(runtime.NumCPU())
 	defer pl.TearDown()
 
@@ -73,7 +73,7 @@ func (p *GoAntalphaLib) Sign(p2p []string, id, threshold int, keyShare []byte, p
 
 }
 
-func (p *GoAntalphaLib) RefreshKey(p2p []string, id, threshold int, keyShare []byte) ([]byte, error) {
+func (p *GoMpcLib) RefreshKey(p2p []string, id, threshold int, keyShare []byte) ([]byte, error) {
 	pl := pool.NewPool(runtime.NumCPU())
 	defer pl.TearDown()
 
@@ -90,7 +90,7 @@ func (p *GoAntalphaLib) RefreshKey(p2p []string, id, threshold int, keyShare []b
 	return cfgNew.MarshalBinary()
 }
 
-func (p *GoAntalphaLib) GenKey(p2p []string, id, threshold int) ([]byte, error) {
+func (p *GoMpcLib) GenKey(p2p []string, id, threshold int) ([]byte, error) {
 	pl := pool.NewPool(runtime.NumCPU())
 	defer pl.TearDown()
 
@@ -109,7 +109,7 @@ func (p *GoAntalphaLib) GenKey(p2p []string, id, threshold int) ([]byte, error) 
 	return shareKey, nil
 }
 
-func (p *GoAntalphaLib) initParty(p2p []string, id int) (party.IDSlice, party.ID, *test.NetworkP2P) {
+func (p *GoMpcLib) initParty(p2p []string, id int) (party.IDSlice, party.ID, *test.NetworkP2P) {
 	ids := party.IDSlice{"a", "b", "c"}
 	nm := map[party.ID]party.IDSlice{
 		"a": {"b", "c"}, "b": {"a", "c"}, "c": {"a", "b", "m"},
