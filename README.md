@@ -1,6 +1,6 @@
 # mobile mpc wallet solution
 
-![Web UI](https://github.com/easedot/multi-party-sig/blob/main/assets/model.png)
+![Web UI](https://github.com/easedot/multi-party-sig/blob/main/assets/p2p.png)
 
 
     exm2p/
