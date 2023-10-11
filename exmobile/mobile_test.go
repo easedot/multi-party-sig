@@ -22,7 +22,7 @@ var (
 )
 
 func TestGoAntalphaLib_GenKey(t *testing.T) {
-	m := GoMpcLib{}
+	m := MPCDotLib{}
 	if keyShare, err := m.GenKey(p2p, id, threshold); err == nil {
 		writeFile(keyShare, f)
 		t.Log("Success")
@@ -37,7 +37,7 @@ func TestGoAntalphaLib_PublicKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	m := GoMpcLib{}
+	m := MPCDotLib{}
 	px, py, err := m.PublicKey(keyShare, path)
 	log.Printf("PubX:%x", px)
 	log.Printf("PubY:%x", py)
@@ -54,7 +54,7 @@ func TestGoAntalphaLib_RefreshKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	m := GoMpcLib{}
+	m := MPCDotLib{}
 	if ks, err := m.RefreshKey(p2p, id, threshold, keyShare); err == nil {
 		writeFile(ks, f)
 		t.Log("Success")
@@ -68,7 +68,7 @@ func TestGoAntalphaLib_Sign(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	m := GoMpcLib{}
+	m := MPCDotLib{}
 	r, s, v, err := m.Sign(p2p, id, threshold, keyShare, path, tx)
 	if err != nil {
 		t.Error(err)
