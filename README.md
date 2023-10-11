@@ -36,6 +36,8 @@
     mobile connect to server1 and server2. MPC use keyshare3 and keyshare2 and keyshare1 sign transaction or any message
     get Sig(R,S,v)
 
+# Reusing Go code in the Flutter app
+   https://github.com/codezri/flutter-gomobile
 
 # multi-party-sig
 
