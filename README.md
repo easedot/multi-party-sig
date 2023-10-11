@@ -4,14 +4,14 @@
 
 
     exm2p/
-    go buld m2p.go
+    go build m2p.go
 
     ./m2p -id=0 -srv=127.0.0.1:7001                      //server1
     ./m2p -id=1 -srv=127.0.0.1:8001 -p2p=127.0.0.1:7001  //server2
 
     exmobile/
 
-    go bild mobile.go //mobile lib GoAntalphaLib
+    go bild mobile.go //mobile lib MPCDotLib
 
 # example mobile use
     
